@@ -2,108 +2,104 @@
 *@author Cameron_davis
 *@version octover 14 2021
 */
-import java.io.*; 
+import java.io.*;
 import java.net.*;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Scanner; 
+import java.util.Date;
+import java.util.Scanner;
 
-public class Client 
-{ 
-	final static int ServerPort = 1234; 
-	public static void main(String args[]) throws UnknownHostException, IOException 
-	{
-		Thread Client_Thread = new Thread(new Runnable() 
-		{ int Total_TAT = 0;
-			@Override
-			public void run() {
-				
-				Scanner scn = new Scanner(System.in); 
-				
-				System.out.print("Enter Number Of Clients : ");
-				int clients = scn.nextInt();
 
-				for (int i=0;i<clients;i++){	
-				try {
+public class Server {
 
-	
-					System.out.println("\nClient No : "+(i+1)+ " In Sequence\n");
-					InetAddress ip = InetAddress.getByName("localhost"); 
-					Socket s = new Socket(ip, ServerPort);
-					DataInputStream dis = new DataInputStream(s.getInputStream()); 
-					DataOutputStream dos = new DataOutputStream(s.getOutputStream()); 		
+    private static int port = 0;
 
-				Scanner scanner = new Scanner(System.in); 	
-				String Menu = "1 -	Date and Time\n2 -	Uptime\n3 -	Memory Use\n4 -	Netstat\n5 -	Current Users\n6 -	Running Processes\nEnter Your Choice for Client "+(i+1)+" : ";	
-				System.out.print(Menu);
-				String choice = scanner.nextLine();
-				String command = "";
-				Instant start = Instant.now();
-				if (choice.equals("1"))
-				{
-					command ="Date";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("2"))
-				{
-					command ="Uptime";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("3"))
-				{
-					command ="Memory";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("4"))
-				{
-					command ="Netstat";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("5"))
-				{
-					command ="User";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("6"))
-				{
-					command ="Process";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else 
-				{	command ="Invalid";
-				dos.writeUTF(command);
-					System.out.print("\nInvalid Command\n");
-				}
-				
-		        Instant end = Instant.now();
-		        Duration interval = Duration.between(start, end);		 
-		        System.out.println("Turnaround Time Of Current Command : " + interval.getSeconds()+" seconds");
-		        Total_TAT = Total_TAT +	(int) (interval.getSeconds());
+    public static void main(String[] args) {
+        String message = "";
+        Scanner clientInput = new Scanner(System.in);
+        String clientRequest;
 
-			}
-				catch (IOException e) {
-					System.out.print(e);					
-				}
-				
-			}
-				System.out.println("Total Turnaround Time : " + Total_TAT +" seconds");
-				System.out.println("Average Turnaround Time : " + (Total_TAT/clients) +" seconds");
-			} 
-		});
-		Client_Thread.start();
-		
-	
-	}
-} 
+        port = Integer.parseInt(args[0]);
+        if(port == 0) {
+            System.out.println("Please enter a port number in the command line");
+            System.exit(0);
+        }
+
+        System.out.println("(Enter ctrl-c to exit the program)");
+
+        // Creation of a server socket
+        try(ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Socket successfully created at port " + port);
+
+            // calling accept to start listening for client requests
+            while(true) {
+                Socket sock = serverSocket.accept();
+                System.out.println("Listening");
+
+                // used to read data sent from client
+                InputStreamReader inputReader = new InputStreamReader(sock.getInputStream());
+
+                // used to read the input stream at a higher, more legible level
+                BufferedReader buffRead = new BufferedReader(inputReader);
+
+                // Sending data to the Client
+                // Wrapped in PrintWriter to send data in text format
+                PrintWriter writer = new PrintWriter(sock.getOutputStream());
+
+                clientRequest = buffRead.readLine();
+                switch(clientRequest) {
+                    case "1":
+                        message = commandRequest("date");
+                        break;
+                    case "2":
+                        message = commandRequest("uptime");
+                        break;
+                    case "3":
+                        message = commandRequest("free -h");
+                        break;
+                    case "4":
+                        message = commandRequest("netstat");
+                        break;
+                    case "5":
+                        message = commandRequest("w");
+                        break;
+                    case "6":
+                        message = commandRequest("ps -aux");
+                        break;
+                    case "7":
+                        message = "Good Bye";
+                        break;
+                    default:
+                        message = "Incorrect Entry, Please Try Again";
+
+                }
+
+                writer.println(message);
+                writer.flush();
+                sock.close();
+            }
+        } catch(IOException e) {
+            System.out.println("The server did not connect correctly");
+            e.printStackTrace();
+        }
+    }// end main
+
+    // commandRequest will be able to take in the command given by the switch statement above and will return the message from
+    // terminal
+    private static String commandRequest(String requestedCommand) {
+        StringBuilder message = new StringBuilder();
+
+        try {
+            // starting the process for whichever command is chosen by the user
+            Process process = Runtime.getRuntime().exec(requestedCommand);
+
+            // reading the output from the process ran
+            BufferedReader theReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String output;
+
+            while((output = theReader.readLine()) != null) message.append(output + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return message.toString();
+    }
+}
