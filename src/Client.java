@@ -3,108 +3,146 @@
 * @version october/14/2021
 */
 
-import java.io.*; 
+import java.io.*;
 import java.net.*;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Scanner; 
+import java.util.*;
+import java.lang.*;
 
-public class Client 
-{ 
-	final static int ServerPort = 1234; 
-	public static void main(String args[]) throws UnknownHostException, IOException 
-	{
-		Thread Client_Thread = new Thread(new Runnable() 
-		{ int Total_TAT = 0;
-			@Override
-			public void run() {
-				
-				Scanner scn = new Scanner(System.in); 
-				
-				System.out.print("Enter Number Of Clients : ");
-				int clients = scn.nextInt();
+public class Client extends Thread {
 
-				for (int i=0;i<clients;i++){	
-				try {
+    // User input
+    private static int portNumber;
+    private static String IPAddress;
+    public static String command = "";	// Command chosen by user
 
-	
-					System.out.println("\nClient No : "+(i+1)+ " In Sequence\n");
-					InetAddress ip = InetAddress.getByName("localhost"); 
-					Socket s = new Socket(ip, ServerPort);
-					DataInputStream dis = new DataInputStream(s.getInputStream()); 
-					DataOutputStream dos = new DataOutputStream(s.getOutputStream()); 		
+    // Time tracking
+    static int allRequestTimes = 0;
+    static int recordedTimeTotal = 0;
+    static int clientValue;
 
-				Scanner scanner = new Scanner(System.in); 	
-				String Menu = "1 -	Date and Time\n2 -	Uptime\n3 -	Memory Use\n4 -	Netstat\n5 -	Current Users\n6 -	Running Processes\nEnter Your Choice for Client "+(i+1)+" : ";	
-				System.out.print(Menu);
-				String choice = scanner.nextLine();
-				String command = "";
-				Instant start = Instant.now();
-				if (choice.equals("1"))
-				{
-					command ="Date";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("2"))
-				{
-					command ="Uptime";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("3"))
-				{
-					command ="Memory";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("4"))
-				{
-					command ="Netstat";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("5"))
-				{
-					command ="User";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else if (choice.equals("6"))
-				{
-					command ="Process";
-					dos.writeUTF(command);
-					String responce = dis.readUTF(); 
-					System.out.println(responce); 
-				}
-				else 
-				{	command ="Invalid";
-				dos.writeUTF(command);
-					System.out.print("\nInvalid Command\n");
-				}
-				
-		        Instant end = Instant.now();
-		        Duration interval = Duration.between(start, end);		 
-		        System.out.println("Turnaround Time Of Current Command : " + interval.getSeconds()+" seconds");
-		        Total_TAT = Total_TAT +	(int) (interval.getSeconds());
+    static int amountOfThreads;
+    static int threadNumber = 1;
+    // Constructor
+    public Client(int value) {
+        this.clientValue = value;
+    }
 
-			}
-				catch (IOException e) {
-					System.out.print(e);					
-				}
-				
-			}
-				System.out.println("Total Turnaround Time : " + Total_TAT +" seconds");
-				System.out.println("Average Turnaround Time : " + (Total_TAT/clients) +" seconds");
-			} 
-		});
-		Client_Thread.start();
-		
-	
-	}
-} 
+    public static void main(String[] args) {
+        IPAddress = args[0];
+        portNumber = Integer.parseInt(args[1]);
+
+        Scanner userInput = new Scanner(System.in);
+        Queue<Thread> threadQueue = new LinkedList<Thread>();
+
+        // menu for the user
+        menu(userInput);
+
+        if(command.equals("7")) {
+            System.out.println("Good Bye");
+            System.exit(0);
+        }
+
+
+        // CREATING THREADS
+        System.out.print("Enter in the amount of times you'd like to run this command: ");
+        amountOfThreads = userInput.nextInt();
+        testingAmountOfThreads(userInput);
+
+
+        // Threads being created
+        for(int i = 0; i < amountOfThreads; i++) {
+            Client newClient = new Client(i);
+            threadQueue.add(newClient);
+        }
+
+        for(int j = 0; j < amountOfThreads; j++) {
+            threadQueue.poll().start();
+        }
+
+        userInput.close();
+        return;
+    }// end main
+
+    public static void testingAmountOfThreads(Scanner userInput) {
+        int number = amountOfThreads;
+        // Testing to see if the amount of threads is over 25
+        if(number > 25) {
+            System.out.print("Invalid Entry, Please Try Again: ");
+            amountOfThreads = userInput.nextInt();
+            testingAmountOfThreads(userInput);
+        }
+        while(number > 0) {
+            number = number - 5;
+        }
+        // Testing to see if the amount of threads is a multiple of 5 or if it was a single thread
+        if(number != 0 && amountOfThreads != 1) {
+            System.out.print("Invalid Entry, Please Try Again: ");
+            amountOfThreads = userInput.nextInt();
+            testingAmountOfThreads(userInput);
+        }
+    }
+
+    public void run() {
+        long time = 0;
+        StringBuilder builtString = new StringBuilder();
+
+        try(Socket sock = new Socket(IPAddress, portNumber)) {
+            long start = System.currentTimeMillis();
+
+            PrintWriter send = new PrintWriter(sock.getOutputStream());
+            send.println(command);
+            send.flush();
+
+            InputStream input = sock.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+
+            String serverMessage;
+
+            while((serverMessage = reader.readLine()) != null) {
+                builtString.append(serverMessage + "\n");
+            }
+
+            System.out.println(builtString);
+
+            long stop = System.currentTimeMillis();
+            time = stop - start;
+            allRequestTimes += time;
+
+            ++recordedTimeTotal;
+
+            if(amountOfThreads <= recordedTimeTotal) {
+                printTime();
+            }
+            threadNumber++;
+            sock.close();
+        } catch(UnknownHostException UHE) {
+            System.out.println("Server cannot be found at this time");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }// end run()
+
+    private static void  menu(Scanner userInput) {
+        System.out.println("Choose from menu options");
+        System.out.println("1. Date and time");
+        System.out.println("2. Uptime");
+        System.out.println("3. Memory use");
+        System.out.println("4. Netstat");
+        System.out.println("5. Current Users");
+        System.out.println("6. Running Processes");
+        System.out.println("7. Exit");
+        System.out.print("> ");
+        command = userInput.nextLine();
+    }
+
+
+
+    // this function will print the times
+    private static void printTime() {
+        long averageTime = allRequestTimes / amountOfThreads;
+        System.out.println("Clients: " + amountOfThreads + "\n");
+        System.out.println("Total Runtime: " + allRequestTimes + " milliseconds");
+        System.out.println("Average Runtime: " + averageTime + " milliseconds");
+
+    }
+}// End Client Class
