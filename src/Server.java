@@ -1,6 +1,6 @@
 /*
 *@author Cameron_davis
-*@version octover 14 2021
+*@version Octover 14 2021
 */
 import java.io.*;
 import java.net.*;
